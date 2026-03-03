@@ -3,32 +3,36 @@ from datetime import datetime
 from google import genai
 from google.genai import types
 
-# 1. Capture the question
+# 1. Capture the question from the iPhone/Action
 try:
-    question = sys.argv[1]
-except IndexError:
-    question = "No question provided."
+    # Use a default if run manually without arguments
+    question = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] else "What is the weather like today?"
+except Exception:
+    question = "Daily check-in"
 
 # 2. Initialize Client
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-# 3. Use Gemini 1.5 Flash (Widest Free Availability)
-print(f"Attempting to process: {question}")
+print(f"Attempting to process with Gemini 3 Flash: {question}")
+
 try:
+    # 3. Use the 2026 Standard: Gemini 3 Flash
+    # We include the date so Google Search Grounding knows exactly what 'today' means
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    
     response = client.models.generate_content(
-        model="gemini-1.5-flash", 
-        contents=f"Summary (2 sentences), Deep Dive (1 paragraph), and Sources for: {question}",
+        model="gemini-3-flash-preview", 
+        contents=f"Today is {current_date}. Provide a 2-sentence summary, a deep dive paragraph, and sources for: {question}",
         config=types.GenerateContentConfig(
-            # We'll keep search on; if it fails, we'll know it's a tool restriction
             tools=[types.Tool(google_search=types.GoogleSearch())]
         )
     )
     answer_text = response.text
 except Exception as e:
-    print(f"Search Grounding failed or Quota hit: {e}")
-    # Fallback: Try without Google Search tool if the first one fails
+    print(f"Primary request failed: {e}")
+    # Fallback: Try without Google Search grounding if it's a quota/tool issue
     response = client.models.generate_content(
-        model="gemini-1.5-flash",
+        model="gemini-3-flash-preview",
         contents=question
     )
     answer_text = response.text
