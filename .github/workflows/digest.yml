@@ -2,6 +2,7 @@ name: Generate Daily Digest
 on:
   repository_dispatch:
     types: [new_log] # This matches the 'event_type' in your iPhone Shortcut
+  workflow_dispatch: # Add this line!
 
 jobs:
   think:
