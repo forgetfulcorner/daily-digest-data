@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Daily Digest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans">
+
+    <nav class="p-6 bg-white border-b sticky top-0 z-10 flex justify-between items-center">
+        <h1 class="text-xl font-bold tracking-tight">Daily Digest</h1>
+        <div class="flex gap-4" id="tabs">
+            <button onclick="switchTab('day')" class="tab-btn font-medium text-blue-600">Today</button>
+            <button onclick="switchTab('week')" class="tab-btn font-medium text-slate-400">Week</button>
+            <button onclick="switchTab('month')" class="tab-btn font-medium text-slate-400">Month</button>
+        </div>
+    </nav>
+
+    <main class="max-w-2xl mx-auto p-6" id="app-content">
+        <div id="loading" class="flex justify-center p-20">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+    </main>
+
+    <script>
+        // CONFIG: Update this to your repo info!
+        const USER = "YOUR_GITHUB_USERNAME";
+        const REPO = "daily-digest-data";
+
+        async function loadDailyData() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            
+            const url = `https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${year}/${month}/${day}.json`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                renderCards(data);
+            } catch (e) {
+                document.getElementById('app-content').innerHTML = `
+                    <div class="text-center p-10 bg-white rounded-2xl border">
+                        <p class="text-slate-500">No questions logged for today yet.</p>
+                    </div>`;
+            }
+        }
+
+        function renderCards(entries) {
+            const container = document.getElementById('app-content');
+            container.innerHTML = entries.reverse().map(entry => `
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mb-6 transition-all hover:shadow-md">
+                    <span class="text-xs font-bold text-blue-500 uppercase tracking-widest">Question</span>
+                    <h2 class="text-xl font-semibold mt-1 mb-4 leading-tight">${entry.question}</h2>
+                    <div class="prose prose-slate text-slate-600 leading-relaxed">
+                        ${entry.answer.replace(/\n/g, '<br>')}
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-slate-50 text-xs text-slate-400 flex justify-between">
+                        <span>${new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <span>Grounding: Gemini 3 Flash</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialize
+        loadDailyData();
+    </script>
+</body>
+</html>
