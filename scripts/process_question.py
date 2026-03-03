@@ -1,44 +1,60 @@
-import os, json, sys, base64
+import os, json, sys
 from datetime import datetime
 from google import genai
 from google.genai import types
 
-# 1. Get the question from the iPhone
-question = sys.argv[1]
-GEMINI_KEY = os.environ["GEMINI_API_KEY"]
-client = genai.Client(api_key=GEMINI_KEY)
+# 1. Capture the question
+try:
+    question = sys.argv[1]
+except IndexError:
+    question = "No question provided."
 
-# 2. Ask Gemini with Google Search Grounding
-print(f"Thinking about: {question}...")
-response = client.models.generate_content(
-    model="gemini-1.5-flash", # Flash is fastest for this
-    contents=f"Provide a 2-sentence summary, a deep dive paragraph, and sources for: {question}",
-    config=types.GenerateContentConfig(
-        tools=[types.Tool(google_search=types.GoogleSearch())]
+# 2. Initialize Client
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+# 3. Use Gemini 1.5 Flash (Widest Free Availability)
+print(f"Attempting to process: {question}")
+try:
+    response = client.models.generate_content(
+        model="gemini-1.5-flash", 
+        contents=f"Summary (2 sentences), Deep Dive (1 paragraph), and Sources for: {question}",
+        config=types.GenerateContentConfig(
+            # We'll keep search on; if it fails, we'll know it's a tool restriction
+            tools=[types.Tool(google_search=types.GoogleSearch())]
+        )
     )
-)
+    answer_text = response.text
+except Exception as e:
+    print(f"Search Grounding failed or Quota hit: {e}")
+    # Fallback: Try without Google Search tool if the first one fails
+    response = client.models.generate_content(
+        model="gemini-1.5-flash",
+        contents=question
+    )
+    answer_text = response.text
 
-# 3. Create the data structure
-new_entry = {
-    "timestamp": datetime.now().isoformat(),
-    "question": question,
-    "answer": response.text,
-    "sources": [source.url for source in response.candidates[0].grounding_metadata.grounding_chunks if hasattr(source, 'url')]
-}
-
-# 4. Save to the daily file
-date_path = datetime.now().strftime("data/%Y/%m/%d.json")
+# 4. Save Logic
+now = datetime.now()
+date_path = f"data/{now.year}/{now.month:02d}/{now.day:02d}.json"
 os.makedirs(os.path.dirname(date_path), exist_ok=True)
 
-# Load existing data if file exists
-data = []
+new_entry = {
+    "timestamp": now.isoformat(),
+    "question": question,
+    "answer": answer_text
+}
+
+# Append to today's list
+day_data = []
 if os.path.exists(date_path):
     with open(date_path, "r") as f:
-        data = json.load(f)
+        try:
+            day_data = json.load(f)
+        except: day_data = []
 
-data.append(new_entry)
+day_data.append(new_entry)
 
 with open(date_path, "w") as f:
-    json.dump(data, f, indent=2)
+    json.dump(day_data, f, indent=2)
 
-print(f"Saved to {date_path}")
+print(f"Successfully saved to {date_path}")
