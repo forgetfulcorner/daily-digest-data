@@ -11,7 +11,7 @@ client = genai.Client(api_key=GEMINI_KEY)
 # 2. Ask Gemini with Google Search Grounding
 print(f"Thinking about: {question}...")
 response = client.models.generate_content(
-    model="gemini-2.0-flash-001", # Flash is fastest for this
+    model="gemini-1.5-flash", # Flash is fastest for this
     contents=f"Provide a 2-sentence summary, a deep dive paragraph, and sources for: {question}",
     config=types.GenerateContentConfig(
         tools=[types.Tool(google_search=types.GoogleSearch())]
