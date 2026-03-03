@@ -35,7 +35,7 @@
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
             
-            const url = `https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${year}/${month}/${day}.json`;
+            const url = `https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${year}/${month}/${day}.json?t=${new Date().getTime()}`;
             
             try {
                 const response = await fetch(url);
