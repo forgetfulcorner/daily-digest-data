@@ -23,5 +23,10 @@
     "timestamp": "2026-03-03T15:45:51.708395",
     "question": "What exactly does caffeine come in what form does it come in",
     "answer": "AI is currently over capacity. Error: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}"
+  },
+  {
+    "timestamp": "2026-03-03T15:49:11.249754",
+    "question": "What form does caffeine come in",
+    "answer": "AI is currently at peak capacity. Please try again in a few minutes."
   }
 ]
