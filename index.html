@@ -3,71 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Daily Digest</title>
+    <title>AI Daily Digest</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="bg-slate-50 text-slate-900 font-sans">
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen">
 
-    <nav class="p-6 bg-white border-b sticky top-0 z-10 flex justify-between items-center">
-        <h1 class="text-xl font-bold tracking-tight">Daily Digest</h1>
-        <div class="flex gap-4" id="tabs">
-            <button onclick="switchTab('day')" class="tab-btn font-medium text-blue-600">Today</button>
-            <button onclick="switchTab('week')" class="tab-btn font-medium text-slate-400">Week</button>
-            <button onclick="switchTab('month')" class="tab-btn font-medium text-slate-400">Month</button>
+    <nav class="p-6 bg-white border-b sticky top-0 z-10 shadow-sm">
+        <div class="max-w-2xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-black tracking-tight text-blue-600">DIGEST.</h1>
+            <div class="flex items-center gap-4 bg-slate-100 p-1 rounded-xl">
+                <button onclick="changeDate(-1)" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm">
+                    <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                </button>
+                <span id="current-date-display" class="text-sm font-bold px-2 text-slate-700">Loading...</span>
+                <button onclick="changeDate(1)" class="p-2 hover:bg-white rounded-lg transition-all shadow-sm">
+                    <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                </button>
+            </div>
         </div>
     </nav>
 
     <main class="max-w-2xl mx-auto p-6" id="app-content">
-        <div id="loading" class="flex justify-center p-20">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div id="loading" class="flex flex-col items-center justify-center py-20">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+            <p class="text-slate-400 text-sm">Consulting the archives...</p>
         </div>
     </main>
 
     <script>
-        // CONFIG: Update this to your repo info!
-        const USER = "forgetfulcorner";
+        // --- CONFIGURATION ---
+        const USER = "YOUR_GITHUB_USERNAME"; // <-- UPDATE THIS
         const REPO = "daily-digest-data";
+        
+        // State management
+        let displayDate = new Date(); // Starts at 'Now'
 
-        async function loadDailyData() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
+        function updateDateDisplay() {
+            const options = { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' };
+            document.getElementById('current-date-display').innerText = displayDate.toLocaleDateString('en-US', options);
+        }
+
+        async function loadData() {
+            updateDateDisplay();
+            const container = document.getElementById('app-content');
+            
+            // Format date for GitHub Path (UTC)
+            const year = displayDate.getUTCFullYear();
+            const month = String(displayDate.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(displayDate.getUTCDate()).padStart(2, '0');
             
             const url = `https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${year}/${month}/${day}.json?t=${new Date().getTime()}`;
-            
+
             try {
                 const response = await fetch(url);
+                if (!response.ok) throw new Error('No data');
                 const data = await response.json();
                 renderCards(data);
             } catch (e) {
-                document.getElementById('app-content').innerHTML = `
-                    <div class="text-center p-10 bg-white rounded-2xl border">
-                        <p class="text-slate-500">No questions logged for today yet.</p>
+                container.innerHTML = `
+                    <div class="text-center py-20 px-10 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                        <i data-lucide="ghost" class="w-12 h-12 text-slate-200 mx-auto mb-4"></i>
+                        <p class="text-slate-500 font-medium">No entries found for this date.</p>
+                        <p class="text-xs text-slate-400 mt-2">UTC Path: data/${year}/${month}/${day}.json</p>
                     </div>`;
+                lucide.createIcons();
             }
         }
 
         function renderCards(entries) {
             const container = document.getElementById('app-content');
+            // Show newest questions first
             container.innerHTML = entries.reverse().map(entry => `
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 mb-6 transition-all hover:shadow-md">
-                    <span class="text-xs font-bold text-blue-500 uppercase tracking-widest">Question</span>
-                    <h2 class="text-xl font-semibold mt-1 mb-4 leading-tight">${entry.question}</h2>
-                    <div class="prose prose-slate text-slate-600 leading-relaxed">
-                        ${entry.answer.replace(/\n/g, '<br>')}
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 mb-8 transform transition-all hover:scale-[1.01]">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-tighter px-2 py-1 rounded-md">Insight</span>
+                        <span class="text-slate-300 text-[10px]">${new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     </div>
-                    <div class="mt-6 pt-4 border-t border-slate-50 text-xs text-slate-400 flex justify-between">
-                        <span>${new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                        <span>Grounding: Gemini 3 Flash</span>
+                    
+                    <h2 class="text-2xl font-bold text-slate-900 mb-6 leading-tight decoration-blue-200 decoration-4 underline-offset-4">
+                        ${entry.question}
+                    </h2>
+                    
+                    <div class="space-y-4 text-slate-600 leading-relaxed text-lg">
+                        ${formatAIResponse(entry.answer)}
                     </div>
                 </div>
             `).join('');
+            lucide.createIcons();
         }
 
-        // Initialize
-        loadDailyData();
+        // Helper to turn AI line breaks and bolding into pretty HTML
+        function formatAIResponse(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<b class="text-slate-900 font-bold">$1</b>') // Bolding
+                .replace(/\n/g, '<br>'); // Line breaks
+        }
+
+        function changeDate(days) {
+            displayDate.setUTCDate(displayDate.getUTCDate() + days);
+            document.getElementById('app-content').innerHTML = '<div class="animate-pulse text-center py-10">...</div>';
+            loadData();
+        }
+
+        // Initialize Icons and Data
+        lucide.createIcons();
+        loadData();
     </script>
 </body>
 </html>
