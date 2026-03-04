@@ -2,111 +2,66 @@ import os, json, sys, time
 from datetime import datetime
 from google import genai
 from google.genai import types
-import re
 
-# --- Configuration ---
-API_KEY = os.environ.get("GEMINI_API_KEY")
-MODEL_NAME = "gemini-2.0-flash"
-DATA_DIR = "data"
+# 1. Setup
+question_input = sys.argv[1] if len(sys.argv) > 1 else "Daily check-in"
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+current_date = datetime.now().strftime("%Y-%m-%d")
 
-# Free-tier safe: no search, no retries, simple call
-client = genai.Client(api_key=API_KEY)
+def get_structured_response():
+    # We use a f-string with triple quotes. 
+    # MAKE SURE there are three quotes at the start and three at the end.
+    prompt_text = f"""
+    Analyze this user question: "{question_input}"
+    
+    TASK:
+    1. Clean up typos and rephrase it professionally.
+    2. Categorize it as: General Knowledge, Geography & Places, Government & Politics, Current Events & News, Science, Technology, History, Culture & Entertainment, Math & Calculations, or Data & Statistics.
+    3. Provide an accurate 3-paragraph answer.
+    
+    OUTPUT: Return ONLY a valid JSON object with these exact keys:
+    "clean_question", "category", "answer"
+    """
 
-# --- Input ---
-raw_question = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] else "Daily check-in"
-
-# --- 1) Clean up question ---
-def clean_question(text):
-    # Remove extra whitespace, fix basic punctuation
-    text = re.sub(r"\s+", " ", text.strip())
-    if not text.endswith("?"):
-        text += "?"
-    return text
-
-question = clean_question(raw_question)
-
-# --- 2) Category classification prompt ---
-CATEGORIES = [
-    "General Knowledge", "Geography & Places", "Government & Politics",
-    "Current Events & News", "Science", "Technology", "History",
-    "Culture & Entertainment", "Math & Calculations", "Data & Statistics"
-]
-
-category_prompt = f"""
-Classify the following question into ONE of these categories: {', '.join(CATEGORIES)}.
-Question: {question}
-Return only the category name.
-"""
-
-def classify_category(q_prompt):
     try:
-        resp = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=q_prompt
+        # Using Gemini 2.0 Flash for best stability/speed balance
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt_text,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                tools=[types.Tool(google_search=types.GoogleSearch())]
+            )
         )
-        # Strip whitespace/newlines
-        category = resp.text.strip()
-        # Ensure it’s one of our categories
-        return category if category in CATEGORIES else "General Knowledge"
-    except:
-        return "General Knowledge"
+        return json.loads(response.text)
+    except Exception as e:
+        print(f"Error: {e}")
+        return {
+            "clean_question": question_input,
+            "category": "General Knowledge",
+            "answer": "The AI is currently at capacity or the request failed. Please try again shortly."
+        }
 
-category = classify_category(category_prompt)
+# 2. Execute and Add Meta-Data
+result = get_structured_response()
+result["timestamp"] = datetime.now().isoformat()
 
-# --- 3) Generate AI answer ---
-answer_prompt = f"""
-Today is {datetime.now().strftime('%Y-%m-%d')}.
-Answer the question in two sentences, then provide a deeper explanation in up to 3 short paragraphs.
-Question: {question}
-"""
+# 3. Save to the correct Date Folder
+now = datetime.now()
+date_path = f"data/{now.year}/{now.month:02d}/{now.day:02d}.json"
+os.makedirs(os.path.dirname(date_path), exist_ok=True)
 
-def get_ai_response():
-    try:
-        resp = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=answer_prompt
-        )
-        return resp.text
-    except:
-        return "AI is currently at peak capacity. Please try again in a few minutes."
-
-answer_text = get_ai_response()
-
-# --- 4) Track API usage ---
-# Free-tier friendly: we log a simple count of requests
-usage_path = os.path.join(DATA_DIR, "api_usage.json")
-os.makedirs(DATA_DIR, exist_ok=True)
-usage_data = {}
-if os.path.exists(usage_path):
-    with open(usage_path, "r") as f:
-        try: usage_data = json.load(f)
-        except: pass
-
-today_str = datetime.now().strftime("%Y-%m-%d")
-usage_data[today_str] = usage_data.get(today_str, 0) + 1
-
-with open(usage_path, "w") as f:
-    json.dump(usage_data, f, indent=2)
-
-# --- 5) Save question/answer ---
-entry = {
-    "timestamp": datetime.now().isoformat(),
-    "question": question,
-    "category": category,
-    "answer": answer_text,
-    "saved": False  # For UI toggle later
-}
-
-day_path = os.path.join(DATA_DIR, f"{datetime.now().strftime('%Y-%m-%d')}.json")
 day_data = []
-if os.path.exists(day_path):
-    with open(day_path, "r") as f:
-        try: day_data = json.load(f)
-        except: pass
+if os.path.exists(date_path):
+    with open(date_path, "r") as f:
+        try:
+            day_data = json.load(f)
+        except:
+            pass
 
-day_data.append(entry)
+day_data.append(result)
 
-with open(day_path, "w") as f:
+with open(date_path, "w") as f:
     json.dump(day_data, f, indent=2)
 
-print(f"Question recorded under category '{category}'. Today's API calls: {usage_data[today_str]}")
+print(f"Successfully processed: {result['clean_question']}")
