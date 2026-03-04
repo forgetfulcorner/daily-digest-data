@@ -6,41 +6,39 @@
     <title>AI Brain Dump</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .card-gradient { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); }
+        .tab-active { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: #2563eb; }
+    </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans min-h-screen pb-20">
 
-    <nav class="p-6 bg-white border-b sticky top-0 z-20 shadow-sm">
+    <nav class="p-4 bg-white/80 backdrop-blur-md border-b sticky top-0 z-50">
         <div class="max-w-2xl mx-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h1 class="text-xl font-black text-blue-600 tracking-tighter">DIGEST.</h1>
-                <div class="flex gap-1 bg-slate-100 p-1 rounded-xl">
-                    <button id="tab-day" onclick="switchTab('day')" class="px-4 py-2 text-xs font-bold rounded-lg bg-white shadow-sm">By Day</button>
-                    <button id="tab-cat" onclick="switchTab('cat')" class="px-4 py-2 text-xs font-bold rounded-lg text-slate-500">By Category</button>
+            <div class="flex justify-between items-center">
+                <h1 class="text-xl font-black text-blue-600 tracking-tighter italic">DIGEST.</h1>
+                <div class="flex gap-1 bg-slate-100 p-1 rounded-xl border">
+                    <button id="tab-day" onclick="switchTab('day')" class="px-4 py-2 text-xs font-bold rounded-lg transition-all tab-active">Daily</button>
+                    <button id="tab-cat" onclick="switchTab('cat')" class="px-4 py-2 text-xs font-bold rounded-lg transition-all text-slate-500">Categories</button>
                 </div>
-            </div>
-            
-            <div id="quota-container" class="flex justify-between items-center bg-blue-50 p-3 rounded-xl">
-                <span class="text-[10px] font-black text-blue-700 uppercase">Daily Usage</span>
-                <div class="w-2/3 bg-blue-100 h-1.5 rounded-full overflow-hidden">
-                    <div id="quota-bar" class="bg-blue-600 h-full transition-all" style="width: 0%"></div>
-                </div>
-                <span id="quota-text" class="text-[10px] font-bold text-blue-600">0/250</span>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-2xl mx-auto p-6" id="app-content"></main>
+    <main class="max-w-2xl mx-auto p-4 md:p-6" id="app-content">
+        <div class="flex justify-center py-20">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+    </main>
 
     <script>
-        const USER = "YOUR_GITHUB_USERNAME"; // <-- REPLACE THIS
+        const USER = "YOUR_GITHUB_USERNAME"; // <-- REPLACE WITH YOUR REAL USERNAME
         const REPO = "daily-digest-data";
         let currentTab = 'day';
-        let viewDate = new Date();
+        let viewDate = new Date(); // Tracks the date for the "Daily" view
 
-        // 1. Core Loader
+        // 1. Core View Controller
         async function loadData() {
-            const container = document.getElementById('app-content');
-            
             if (currentTab === 'day') {
                 renderDayView();
             } else {
@@ -48,37 +46,50 @@
             }
         }
 
+        // 2. Render Daily View
         async function renderDayView() {
-            const y = viewDate.getUTCFullYear();
-            const m = String(viewDate.getUTCMonth() + 1).padStart(2, '0');
-            const d = String(viewDate.getUTCDate()).padStart(2, '0');
-            const url = `https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${y}/${m}/${d}.json?t=${Date.now()}`;
+            const container = document.getElementById('app-content');
+            
+            // Format date for the GitHub path (YYYY/MM/DD)
+            const y = viewDate.getFullYear();
+            const m = String(viewDate.getMonth() + 1).padStart(2, '0');
+            const d = String(viewDate.getDate()).padStart(2, '0');
+            
+            const url = `https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${y}/${m}/${d}.json?nocache=${Date.now()}`;
+
+            let headerHtml = `
+                <div class="flex justify-between items-center mb-6 bg-white p-3 rounded-2xl border shadow-sm">
+                    <button onclick="changeDate(-1)" class="p-2 hover:bg-slate-50 rounded-full transition"><i data-lucide="chevron-left"></i></button>
+                    <div class="text-center">
+                        <span class="block text-[10px] uppercase font-black text-slate-400 tracking-widest">Logged On</span>
+                        <span class="font-bold text-slate-800">${m}/${d}/${y}</span>
+                    </div>
+                    <button onclick="changeDate(1)" class="p-2 hover:bg-slate-100 rounded-full transition"><i data-lucide="chevron-right"></i></button>
+                </div>`;
 
             try {
                 const res = await fetch(url);
+                if (!res.ok) throw new Error("No logs");
                 const data = await res.json();
-                updateQuota(data.length);
                 
-                document.getElementById('app-content').innerHTML = `
-                    <div class="flex justify-center gap-4 mb-8">
-                        <button onclick="changeDate(-1)" class="p-2 border rounded-full bg-white"><i data-lucide="chevron-left"></i></button>
-                        <span class="font-bold py-2">${m}/${d}/${y}</span>
-                        <button onclick="changeDate(1)" class="p-2 border rounded-full bg-white"><i data-lucide="chevron-right"></i></button>
-                    </div>
-                ` + data.reverse().map(item => cardTemplate(item)).join('');
-                lucide.createIcons();
+                container.innerHTML = headerHtml + data.reverse().map(item => cardTemplate(item)).join('');
             } catch {
-                document.getElementById('app-content').innerHTML = `<div class="text-center py-20 text-slate-400">No entries for this date.</div>`;
+                container.innerHTML = headerHtml + `
+                    <div class="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
+                        <i data-lucide="calendar-x" class="mx-auto w-10 h-10 text-slate-200 mb-3"></i>
+                        <p class="text-slate-400 font-medium text-sm">No entries found for this date.</p>
+                    </div>`;
             }
+            lucide.createIcons();
         }
 
+        // 3. Render Category View
         async function renderCategoryView() {
             const container = document.getElementById('app-content');
-            container.innerHTML = `<div class="text-center py-20 animate-pulse text-slate-400">Aggregating categories...</div>`;
+            container.innerHTML = `<div class="text-center py-20 text-slate-400 animate-pulse font-medium">Scanning your history...</div>`;
 
-            // Note: In a production site, we'd list files via GitHub API. 
-            // For now, we'll fetch the last 7 days to keep it fast.
             let allEntries = [];
+            // We scan the last 7 days for the category summary
             for(let i=0; i<7; i++) {
                 const d = new Date(); d.setDate(d.getDate() - i);
                 const path = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
@@ -86,6 +97,11 @@
                     const res = await fetch(`https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${path}.json`);
                     if(res.ok) allEntries = allEntries.concat(await res.json());
                 } catch(e) {}
+            }
+
+            if (allEntries.length === 0) {
+                container.innerHTML = `<div class="text-center py-20 text-slate-400">No data found in the last 7 days.</div>`;
+                return;
             }
 
             const grouped = allEntries.reduce((acc, obj) => {
@@ -97,8 +113,8 @@
 
             container.innerHTML = Object.keys(grouped).map(cat => `
                 <div class="mb-10">
-                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span class="w-8 h-px bg-slate-200"></span> ${cat} (${grouped[cat].length})
+                    <h3 class="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-3">
+                        ${cat} <span class="h-px flex-1 bg-blue-100"></span> <span class="text-slate-300">${grouped[cat].length}</span>
                     </h3>
                     ${grouped[cat].map(item => cardTemplate(item)).join('')}
                 </div>
@@ -106,27 +122,28 @@
             lucide.createIcons();
         }
 
+        // 4. Shared Card Template
         function cardTemplate(item) {
+            const time = item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
             return `
-                <div class="bg-white p-6 rounded-[1.5rem] border mb-4 shadow-sm">
-                    <h2 class="font-bold text-slate-800 mb-2">${item.clean_question || item.question}</h2>
-                    <div class="text-slate-600 text-sm leading-relaxed mb-3">${item.answer.replace(/\n/g, '<br>')}</div>
-                    <div class="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">${new Date(item.timestamp).toLocaleTimeString()}</div>
+                <div class="card-gradient p-6 rounded-[2rem] border mb-5 shadow-sm hover:shadow-md transition-shadow group">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-[9px] font-black px-2 py-1 rounded-md bg-slate-100 text-slate-500 uppercase tracking-tighter">${item.category || 'General'}</span>
+                        <span class="text-[9px] font-bold text-slate-300 tracking-tighter">${time}</span>
+                    </div>
+                    <h2 class="font-bold text-slate-900 text-lg leading-tight mb-3 group-hover:text-blue-600 transition-colors">${item.clean_question || item.question}</h2>
+                    <div class="text-slate-600 text-sm leading-relaxed space-y-3">
+                        ${item.answer.split('\n').map(p => p.trim() ? `<p>${p}</p>` : '').join('')}
+                    </div>
                 </div>
             `;
         }
 
-        function updateQuota(count) {
-            const max = 250;
-            const pct = Math.min((count / max) * 100, 100);
-            document.getElementById('quota-bar').style.width = pct + '%';
-            document.getElementById('quota-text').innerText = `${count}/${max}`;
-        }
-
+        // 5. Navigation Helpers
         function switchTab(tab) {
             currentTab = tab;
-            document.getElementById('tab-day').className = tab === 'day' ? 'px-4 py-2 text-xs font-bold rounded-lg bg-white shadow-sm' : 'px-4 py-2 text-xs font-bold rounded-lg text-slate-500';
-            document.getElementById('tab-cat').className = tab === 'cat' ? 'px-4 py-2 text-xs font-bold rounded-lg bg-white shadow-sm' : 'px-4 py-2 text-xs font-bold rounded-lg text-slate-500';
+            document.getElementById('tab-day').className = tab === 'day' ? 'px-4 py-2 text-xs font-bold rounded-lg transition-all tab-active' : 'px-4 py-2 text-xs font-bold rounded-lg transition-all text-slate-500';
+            document.getElementById('tab-cat').className = tab === 'cat' ? 'px-4 py-2 text-xs font-bold rounded-lg transition-all tab-active' : 'px-4 py-2 text-xs font-bold rounded-lg transition-all text-slate-500';
             loadData();
         }
 
