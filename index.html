@@ -6,6 +6,7 @@
     <title>Intrusive Thoughts</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         .card-gradient { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); }
         .tab-active { background: #2563eb; color: white; border-color: #2563eb; }
@@ -137,15 +138,18 @@
 
         // --- UTILS ---
         function cardTemplate(item) {
+            // This converts the AI's markdown into clean HTML
+            const formattedAnswer = marked.parse(item.answer);
+            
             return `
-                <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 mb-8 shadow-sm hover:shadow-md transition-shadow">
+                <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 mb-8 shadow-sm">
                     <div class="flex justify-between items-center mb-4">
                         <span class="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">${item.category}</span>
-                        <span class="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">${item.timestamp ? new Date(item.timestamp).toLocaleDateString() : ''}</span>
+                        <span class="text-[9px] font-bold text-slate-300 uppercase">${item.timestamp ? new Date(item.timestamp).toLocaleDateString() : ''}</span>
                     </div>
                     <h2 class="text-xl font-bold text-slate-900 mb-4 leading-tight">${item.clean_question}</h2>
-                    <div class="text-slate-600 text-sm leading-relaxed space-y-4">
-                        ${item.answer.split('\n').map(p => p.trim() ? `<p>${p}</p>` : '').join('')}
+                    <div class="text-slate-600 text-sm leading-relaxed prose prose-slate max-w-none">
+                        ${formattedAnswer}
                     </div>
                 </div>`;
         }
