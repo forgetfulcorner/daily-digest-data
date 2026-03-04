@@ -1,0 +1,8 @@
+[
+  {
+    "clean_question": "How are the chips in credit cards powered?",
+    "category": "Technology",
+    "answer": "Credit card chips, also known as EMV chips (Europay, Mastercard, and Visa), are powered by the card reader itself. When you insert your card into a terminal, the reader supplies a small amount of electrical power to the chip. This allows the chip to perform its cryptographic functions and securely communicate the transaction data to the terminal.",
+    "timestamp": "2026-03-04T02:50:38.296751"
+  }
+]
