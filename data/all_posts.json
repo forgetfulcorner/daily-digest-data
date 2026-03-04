@@ -10,5 +10,11 @@
     "category": "Science",
     "answer": "Squirrels are wild animals and generally prefer to avoid human interaction. While some squirrels might become accustomed to people in areas where they are frequently fed, this doesn't mean they *like* attention. Close proximity to humans can be stressful for them, and they are naturally wary of predators, which includes humans to some extent. Their primary instincts are focused on survival: finding food, avoiding danger, and reproduction. Therefore, it's best to observe squirrels from a distance and not try to interact with them.",
     "timestamp": "2026-03-04T02:59:07.989641"
+  },
+  {
+    "clean_question": "How were the pyramids built?",
+    "category": "History",
+    "answer": "While the exact methods used to build the pyramids are still debated by archaeologists and historians, the prevailing theories suggest they were constructed using a combination of skilled labor, ramps, levers, and immense organizational effort. Massive stone blocks were quarried, transported using sledges and possibly rollers, and then lifted into place using elaborate ramp systems, possibly combined with levers. The sheer scale of these projects indicates a highly sophisticated understanding of logistics, engineering, and resource management by ancient Egyptians.",
+    "timestamp": "2026-03-04T03:02:56.028878"
   }
 ]
