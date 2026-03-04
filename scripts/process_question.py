@@ -9,32 +9,51 @@ client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 def get_ai_response():
     model_id = "gemini-2.5-flash-lite"
-    categories = ["General Knowledge", "Geography & Places", "Government & Politics", "Current Events & News", "Science", "Technology", "History", "Culture & Entertainment", "Math & Calculations", "Data & Statistics"]
+    categories = [
+        "General Knowledge", "Geography & Places", "Government & Politics", 
+        "Current Events & News", "Science", "Technology", "History", 
+        "Culture & Entertainment", "Math & Calculations", "Data & Statistics"
+    ]
     
-    prompt = f"Return ONLY JSON for: {question_input}. Cat: {categories}. Structure: {{'clean_question': '...', 'category': '...', 'answer': '...'}}"
+    # NEW: Demand depth, formatting, and word count
+    prompt = f"""
+    You are an expert educator. Process: "{question_input}"
+    
+    1. CLEAN: Rephrase as a professional, curious title.
+    2. CATEGORIZE: Select EXACTLY one: {categories}.
+    3. ANSWER: Provide a deep, engaging response (200-750 words). 
+       - Use Markdown (bolding, bullet points) for readability.
+       - Cover the biological, social, and behavioral aspects of the topic.
+       - Ensure the tone is sophisticated yet accessible.
+    
+    OUTPUT ONLY VALID JSON:
+    {{
+      "clean_question": "string",
+      "category": "string",
+      "answer": "string (using markdown for formatting)"
+    }}
+    """
     
     response = client.models.generate_content(
-        model=model_id, contents=prompt,
+        model=model_id, 
+        contents=prompt,
         config=types.GenerateContentConfig(response_mime_type="application/json")
     )
     return json.loads(response.text)
 
-# Process
+# --- Save Logic (Daily & Master) ---
 result = get_ai_response()
 result["timestamp"] = datetime.now().isoformat()
 
-# 1. Save to Daily Folder (Existing Logic)
 now = datetime.now()
 date_path = f"data/{now.year}/{now.month:02d}/{now.day:02d}.json"
-os.makedirs(os.path.dirname(date_path), exist_ok=True)
-day_data = json.load(open(date_path)) if os.path.exists(date_path) else []
-day_data.append(result)
-with open(date_path, "w") as f: json.dump(day_data, f, indent=2)
-
-# 2. Save to Master Index (New Logic for "All Posts")
 master_path = "data/all_posts.json"
-master_data = json.load(open(master_path)) if os.path.exists(master_path) else []
-master_data.append(result)
-with open(master_path, "w") as f: json.dump(master_data, f, indent=2)
 
-print(f"Logged to daily and master index.")
+for path in [date_path, master_path]:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    data = json.load(open(path)) if os.path.exists(path) else []
+    data.append(result)
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+print(f"Logged: {result['clean_question']} to {date_path} and master index.")
