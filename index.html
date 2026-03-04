@@ -8,6 +8,10 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
+        /* This makes the AI's long answers look beautiful and readable */
+        .prose p { margin-bottom: 1.25rem; }
+        .prose ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1.25rem; }
+        .prose h3 { font-size: 1.1rem; font-weight: 800; margin-top: 1.5rem; margin-bottom: 0.5rem; color: #1e293b; }
         .card-gradient { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); }
         .tab-active { background: #2563eb; color: white; border-color: #2563eb; }
         /* Custom scrollbar for a cleaner look */
@@ -49,6 +53,25 @@
         let currentTab = 'day';
         let viewDate = new Date();
         let selectedCategory = "All Topics";
+
+        let touchStart = 0;
+        let touchEnd = 0;
+        
+        // Listen for the start of a touch
+        window.addEventListener('touchstart', e => {
+            touchStart = e.targetTouches[0].pageY;
+        }, {passive: true});
+        
+        // Listen for the movement
+        window.addEventListener('touchmove', e => {
+            touchEnd = e.targetTouches[0].pageY;
+            
+            // If we are at the top of the page and swipe down more than 150px
+            if (window.scrollY === 0 && touchEnd - touchStart > 150) {
+                // Trigger a visual hint (optional) or just reload
+                location.reload(); 
+            }
+        }, {passive: true});
 
         const CATEGORIES = [
             "All Topics", "General Knowledge", "Geography & Places", "Government & Politics", 
