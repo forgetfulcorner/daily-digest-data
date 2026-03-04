@@ -1,4 +1,4 @@
-import os, json, sys, time, re
+import os, json, sys, re
 from datetime import datetime
 from google import genai
 from google.genai import types
@@ -8,69 +8,33 @@ question_input = sys.argv[1] if len(sys.argv) > 1 else "Daily check-in"
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 def get_ai_response():
-    # Using the high-efficiency model from your 2026 usage chart
     model_id = "gemini-2.5-flash-lite"
+    categories = ["General Knowledge", "Geography & Places", "Government & Politics", "Current Events & News", "Science", "Technology", "History", "Culture & Entertainment", "Math & Calculations", "Data & Statistics"]
     
-    # We explicitly list your categories here so the AI has a "Menu" to choose from
-    categories = [
-        "General Knowledge", "Geography & Places", "Government & Politics", 
-        "Current Events & News", "Science", "Technology", "History", 
-        "Culture & Entertainment", "Math & Calculations", "Data & Statistics"
-    ]
-
-    prompt = f"""
-    You are a professional editor. Process this input: "{question_input}"
+    prompt = f"Return ONLY JSON for: {question_input}. Cat: {categories}. Structure: {{'clean_question': '...', 'category': '...', 'answer': '...'}}"
     
-    1. CLEAN: Fix typos and rephrase the question as a professional title.
-    2. CATEGORIZE: Select EXACTLY one from this list: {', '.join(categories)}.
-    3. ANSWER: Provide a detailed 3-paragraph educational response.
-    
-    OUTPUT ONLY VALID JSON:
-    {{
-      "clean_question": "string",
-      "category": "string",
-      "answer": "string"
-    }}
-    """
+    response = client.models.generate_content(
+        model=model_id, contents=prompt,
+        config=types.GenerateContentConfig(response_mime_type="application/json")
+    )
+    return json.loads(response.text)
 
-    try:
-        response = client.models.generate_content(
-            model=model_id,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json")
-        )
-        return json.loads(response.text)
-    except Exception as e:
-        print(f"Error: {e}")
-        return {
-            "clean_question": question_input,
-            "category": "General Knowledge",
-            "answer": "The AI is currently resetting. Your question has been logged."
-        }
-
-# Process and Save
+# Process
 result = get_ai_response()
 result["timestamp"] = datetime.now().isoformat()
 
-# Use UTC time to stay consistent with GitHub Actions servers
+# 1. Save to Daily Folder (Existing Logic)
 now = datetime.now()
-dir_path = f"data/{now.year}/{now.month:02d}"
-file_path = f"{dir_path}/{now.day:02d}.json"
-
-os.makedirs(dir_path, exist_ok=True)
-
-day_data = []
-if os.path.exists(file_path):
-    with open(file_path, "r") as f:
-        try:
-            day_data = json.load(f)
-        except:
-            day_data = []
-
+date_path = f"data/{now.year}/{now.month:02d}/{now.day:02d}.json"
+os.makedirs(os.path.dirname(date_path), exist_ok=True)
+day_data = json.load(open(date_path)) if os.path.exists(date_path) else []
 day_data.append(result)
+with open(date_path, "w") as f: json.dump(day_data, f, indent=2)
 
-with open(file_path, "w") as f:
-    json.dump(day_data, f, indent=2)
+# 2. Save to Master Index (New Logic for "All Posts")
+master_path = "data/all_posts.json"
+master_data = json.load(open(master_path)) if os.path.exists(master_path) else []
+master_data.append(result)
+with open(master_path, "w") as f: json.dump(master_data, f, indent=2)
 
-print(f"FILE_WRITTEN: {file_path}")
-print(f"CATEGORY_ASSIGNED: {result['category']}")
+print(f"Logged to daily and master index.")
