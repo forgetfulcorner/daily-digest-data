@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Brain Dump</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen pb-20">
+
+    <nav class="p-6 bg-white border-b sticky top-0 z-20 shadow-sm">
+        <div class="max-w-2xl mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-xl font-black text-blue-600 tracking-tighter">DIGEST.</h1>
+                <div class="flex gap-1 bg-slate-100 p-1 rounded-xl">
+                    <button id="tab-day" onclick="switchTab('day')" class="px-4 py-2 text-xs font-bold rounded-lg bg-white shadow-sm">By Day</button>
+                    <button id="tab-cat" onclick="switchTab('cat')" class="px-4 py-2 text-xs font-bold rounded-lg text-slate-500">By Category</button>
+                </div>
+            </div>
+            
+            <div id="quota-container" class="flex justify-between items-center bg-blue-50 p-3 rounded-xl">
+                <span class="text-[10px] font-black text-blue-700 uppercase">Daily Usage</span>
+                <div class="w-2/3 bg-blue-100 h-1.5 rounded-full overflow-hidden">
+                    <div id="quota-bar" class="bg-blue-600 h-full transition-all" style="width: 0%"></div>
+                </div>
+                <span id="quota-text" class="text-[10px] font-bold text-blue-600">0/250</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-2xl mx-auto p-6" id="app-content"></main>
+
+    <script>
+        const USER = "YOUR_GITHUB_USERNAME"; // <-- REPLACE THIS
+        const REPO = "daily-digest-data";
+        let currentTab = 'day';
+        let viewDate = new Date();
+
+        // 1. Core Loader
+        async function loadData() {
+            const container = document.getElementById('app-content');
+            
+            if (currentTab === 'day') {
+                renderDayView();
+            } else {
+                renderCategoryView();
+            }
+        }
+
+        async function renderDayView() {
+            const y = viewDate.getUTCFullYear();
+            const m = String(viewDate.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(viewDate.getUTCDate()).padStart(2, '0');
+            const url = `https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${y}/${m}/${d}.json?t=${Date.now()}`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                updateQuota(data.length);
+                
+                document.getElementById('app-content').innerHTML = `
+                    <div class="flex justify-center gap-4 mb-8">
+                        <button onclick="changeDate(-1)" class="p-2 border rounded-full bg-white"><i data-lucide="chevron-left"></i></button>
+                        <span class="font-bold py-2">${m}/${d}/${y}</span>
+                        <button onclick="changeDate(1)" class="p-2 border rounded-full bg-white"><i data-lucide="chevron-right"></i></button>
+                    </div>
+                ` + data.reverse().map(item => cardTemplate(item)).join('');
+                lucide.createIcons();
+            } catch {
+                document.getElementById('app-content').innerHTML = `<div class="text-center py-20 text-slate-400">No entries for this date.</div>`;
+            }
+        }
+
+        async function renderCategoryView() {
+            const container = document.getElementById('app-content');
+            container.innerHTML = `<div class="text-center py-20 animate-pulse text-slate-400">Aggregating categories...</div>`;
+
+            // Note: In a production site, we'd list files via GitHub API. 
+            // For now, we'll fetch the last 7 days to keep it fast.
+            let allEntries = [];
+            for(let i=0; i<7; i++) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                const path = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+                try {
+                    const res = await fetch(`https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${path}.json`);
+                    if(res.ok) allEntries = allEntries.concat(await res.json());
+                } catch(e) {}
+            }
+
+            const grouped = allEntries.reduce((acc, obj) => {
+                const key = obj.category || "General Knowledge";
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(obj);
+                return acc;
+            }, {});
+
+            container.innerHTML = Object.keys(grouped).map(cat => `
+                <div class="mb-10">
+                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <span class="w-8 h-px bg-slate-200"></span> ${cat} (${grouped[cat].length})
+                    </h3>
+                    ${grouped[cat].map(item => cardTemplate(item)).join('')}
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function cardTemplate(item) {
+            return `
+                <div class="bg-white p-6 rounded-[1.5rem] border mb-4 shadow-sm">
+                    <h2 class="font-bold text-slate-800 mb-2">${item.clean_question || item.question}</h2>
+                    <div class="text-slate-600 text-sm leading-relaxed mb-3">${item.answer.replace(/\n/g, '<br>')}</div>
+                    <div class="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">${new Date(item.timestamp).toLocaleTimeString()}</div>
+                </div>
+            `;
+        }
+
+        function updateQuota(count) {
+            const max = 250;
+            const pct = Math.min((count / max) * 100, 100);
+            document.getElementById('quota-bar').style.width = pct + '%';
+            document.getElementById('quota-text').innerText = `${count}/${max}`;
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-day').className = tab === 'day' ? 'px-4 py-2 text-xs font-bold rounded-lg bg-white shadow-sm' : 'px-4 py-2 text-xs font-bold rounded-lg text-slate-500';
+            document.getElementById('tab-cat').className = tab === 'cat' ? 'px-4 py-2 text-xs font-bold rounded-lg bg-white shadow-sm' : 'px-4 py-2 text-xs font-bold rounded-lg text-slate-500';
+            loadData();
+        }
+
+        function changeDate(amt) {
+            viewDate.setDate(viewDate.getDate() + amt);
+            loadData();
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
