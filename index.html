@@ -3,17 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Intrusive Thoughts</title>
+    <title>forgetfulcorner | AI Digest</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        .card-gradient { background: linear-gradient(135deg, #ffffff 0%, #fefeff 100%); }
+        .card-gradient { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); }
         .tab-active { background: #2563eb; color: white; border-color: #2563eb; }
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 font-sans min-h-screen pb-24">
 
-    <nav class="p-6 bg-white border-b sticky top-0 z-50 shadow-sm">
+    <nav class="p-6 bg-white/90 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
         <div class="max-w-2xl mx-auto flex justify-between items-center">
             <h1 class="text-xl font-black text-blue-600 tracking-tighter italic uppercase">forgetfulcorner.</h1>
             <div class="flex gap-1 bg-slate-100 p-1 rounded-xl border">
@@ -23,12 +26,20 @@
         </div>
     </nav>
 
-    <main class="max-w-2xl mx-auto p-4 pt-8" id="app-content"></main>
+    <main class="max-w-2xl mx-auto p-4 pt-8" id="app-content">
+        <div class="flex justify-center py-20 text-slate-300 animate-pulse">Initializing archive...</div>
+    </main>
 
     <div id="daily-nav" class="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 bg-white/90 backdrop-blur-md shadow-2xl border p-2 rounded-3xl z-50">
-        <button onclick="changeDate(-1)" class="p-4 hover:bg-white rounded-2xl transition border border-transparent hover:border-slate-200"><i data-lucide="chevron-left"></i></button>
-        <button onclick="viewToday()" class="px-8 py-4 font-black text-xs uppercase tracking-widest bg-blue-600 text-white rounded-2xl shadow-lg">Today</button>
-        <button onclick="changeDate(1)" class="p-4 hover:bg-white rounded-2xl transition border border-transparent hover:border-slate-200"><i data-lucide="chevron-right"></i></button>
+        <button onclick="changeDate(-1)" class="p-4 hover:bg-white rounded-2xl transition border border-transparent hover:border-slate-200">
+            <i data-lucide="chevron-left"></i>
+        </button>
+        <button onclick="viewToday()" class="px-8 py-4 font-black text-xs uppercase tracking-widest bg-blue-600 text-white rounded-2xl shadow-lg hover:bg-blue-700 transition">
+            Today
+        </button>
+        <button onclick="changeDate(1)" class="p-4 hover:bg-white rounded-2xl transition border border-transparent hover:border-slate-200">
+            <i data-lucide="chevron-right"></i>
+        </button>
     </div>
 
     <script>
@@ -38,25 +49,25 @@
         let viewDate = new Date();
         let selectedCategory = "All Topics";
 
-        const PREDEFINED_CATEGORIES = [
+        const CATEGORIES = [
             "All Topics", "General Knowledge", "Geography & Places", "Government & Politics", 
             "Current Events & News", "Science", "Technology", "History", 
             "Culture & Entertainment", "Math & Calculations", "Data & Statistics"
         ];
 
-        async function loadData() {
-            const container = document.getElementById('app-content');
+        // Core UI Controller
+        async function loadView() {
             const dailyNav = document.getElementById('daily-nav');
-            
             if (currentTab === 'day') {
                 dailyNav.style.display = 'flex';
                 renderDayView();
             } else {
                 dailyNav.style.display = 'none';
-                renderCategoryView();
+                renderTopicView();
             }
         }
 
+        // --- DAILY VIEW LOGIC ---
         async function renderDayView() {
             const container = document.getElementById('app-content');
             const y = viewDate.getFullYear();
@@ -64,8 +75,7 @@
             const d = String(viewDate.getDate()).padStart(2, '0');
             
             const url = `https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${y}/${m}/${d}.json?t=${Date.now()}`;
-
-            let header = `<div class="mb-8 text-center"><p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1">Archived On</p><p class="text-xl font-bold text-slate-800">${m}/${d}/${y}</p></div>`;
+            const header = `<div class="mb-8 text-center"><p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1">Journal Entry</p><p class="text-xl font-bold text-slate-800">${m}/${d}/${y}</p></div>`;
 
             try {
                 const res = await fetch(url);
@@ -73,70 +83,85 @@
                 const data = await res.json();
                 container.innerHTML = header + data.reverse().map(item => cardTemplate(item)).join('');
             } catch {
-                container.innerHTML = header + `<div class="text-center py-20 border-2 border-dashed rounded-[3rem] border-slate-200 bg-white/50"><p class="text-slate-400 font-bold italic">No logs for this date.</p></div>`;
+                container.innerHTML = header + `
+                    <div class="text-center py-20 border-2 border-dashed rounded-[3rem] border-slate-200 bg-white/50">
+                        <i data-lucide="calendar-x" class="mx-auto w-10 h-10 text-slate-200 mb-4"></i>
+                        <p class="text-slate-400 font-bold italic">No entries logged for this date.</p>
+                    </div>`;
             }
             lucide.createIcons();
         }
 
-        async function renderCategoryView() {
+        // --- TOPIC VIEW LOGIC (Lifetime Archive) ---
+        async function renderTopicView() {
             const container = document.getElementById('app-content');
             
-            // 1. Create Dropdown UI
-            let catHeader = `
-                <div class="mb-10">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Filter by Topic</label>
-                    <select onchange="updateCategoryFilter(this.value)" class="w-full p-4 bg-white border rounded-2xl font-bold text-slate-800 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer">
-                        ${PREDEFINED_CATEGORIES.map(c => `<option value="${c}" ${selectedCategory === c ? 'selected' : ''}>${c}</option>`).join('')}
-                    </select>
+            let dropdownHtml = `
+                <div class="mb-10 group">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Filter Lifetime History</label>
+                    <div class="relative">
+                        <select onchange="updateFilter(this.value)" class="w-full p-4 bg-white border border-slate-200 rounded-2xl font-bold text-slate-800 shadow-sm outline-none appearance-none cursor-pointer focus:border-blue-500 transition-colors">
+                            ${CATEGORIES.map(c => `<option value="${c}" ${selectedCategory === c ? 'selected' : ''}>${c}</option>`).join('')}
+                        </select>
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </div>
+                    </div>
                 </div>`;
 
-            container.innerHTML = catHeader + `<div class="text-center py-10 animate-pulse text-slate-400">Searching all history...</div>`;
+            container.innerHTML = dropdownHtml + `<div class="text-center py-10 text-slate-400 animate-pulse">Opening master vault...</div>`;
 
-            // 2. Scan last 14 days (Gemma's limits allow for wide scans)
-            let allEntries = [];
-            for(let i=0; i<14; i++) {
-                const d = new Date(); d.setDate(d.getDate() - i);
-                const path = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-                try {
-                    const res = await fetch(`https://raw.githubusercontent.com/${USER}/${REPO}/main/data/${path}.json`);
-                    if(res.ok) allEntries = allEntries.concat(await res.json());
-                } catch(e) {}
-            }
+            // Fetches the master file we created in the Python script
+            const url = `https://raw.githubusercontent.com/${USER}/${REPO}/main/data/all_posts.json?t=${Date.now()}`;
 
-            // 3. Filter and Render
-            const filtered = selectedCategory === "All Topics" 
-                ? allEntries 
-                : allEntries.filter(e => e.category === selectedCategory);
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error();
+                const allPosts = await res.json();
 
-            if (filtered.length === 0) {
-                container.innerHTML = catHeader + `<div class="text-center py-20 text-slate-400 italic">No entries found for "${selectedCategory}" in the last 2 weeks.</div>`;
-            } else {
-                container.innerHTML = catHeader + filtered.map(item => cardTemplate(item)).join('');
+                const filtered = selectedCategory === "All Topics" 
+                    ? allPosts 
+                    : allPosts.filter(p => p.category === selectedCategory);
+
+                if (filtered.length === 0) {
+                    container.innerHTML = dropdownHtml + `<div class="text-center py-20 text-slate-400 italic">No posts found under "${selectedCategory}".</div>`;
+                } else {
+                    // Show newest posts first
+                    container.innerHTML = dropdownHtml + filtered.reverse().map(item => cardTemplate(item)).join('');
+                }
+            } catch {
+                container.innerHTML = dropdownHtml + `<div class="text-center py-20 text-slate-400 italic">Master archive (all_posts.json) not found.<br>Log a new post to initialize the archive!</div>`;
             }
             lucide.createIcons();
         }
 
+        // --- UTILS ---
         function cardTemplate(item) {
             return `
-                <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 mb-8 shadow-sm">
-                    <span class="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-4 block">${item.category}</span>
+                <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 mb-8 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">${item.category}</span>
+                        <span class="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">${item.timestamp ? new Date(item.timestamp).toLocaleDateString() : ''}</span>
+                    </div>
                     <h2 class="text-xl font-bold text-slate-900 mb-4 leading-tight">${item.clean_question}</h2>
-                    <div class="text-slate-600 text-sm leading-relaxed space-y-4">${item.answer}</div>
+                    <div class="text-slate-600 text-sm leading-relaxed space-y-4">
+                        ${item.answer.split('\n').map(p => p.trim() ? `<p>${p}</p>` : '').join('')}
+                    </div>
                 </div>`;
         }
 
         function switchTab(t) {
             currentTab = t;
-            document.getElementById('tab-day').className = t === 'day' ? 'px-4 py-1.5 text-xs font-bold rounded-lg tab-active' : 'px-4 py-1.5 text-xs font-bold rounded-lg text-slate-500';
-            document.getElementById('tab-cat').className = t === 'cat' ? 'px-4 py-1.5 text-xs font-bold rounded-lg tab-active' : 'px-4 py-1.5 text-xs font-bold rounded-lg text-slate-500';
-            loadData();
+            document.getElementById('tab-day').className = t === 'day' ? 'px-4 py-1.5 text-xs font-bold rounded-lg transition-all tab-active' : 'px-4 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-500';
+            document.getElementById('tab-cat').className = t === 'cat' ? 'px-4 py-1.5 text-xs font-bold rounded-lg transition-all tab-active' : 'px-4 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-500';
+            loadView();
         }
 
-        function updateCategoryFilter(val) { selectedCategory = val; renderCategoryView(); }
+        function updateFilter(val) { selectedCategory = val; renderTopicView(); }
         function changeDate(n) { viewDate.setDate(viewDate.getDate() + n); renderDayView(); }
         function viewToday() { viewDate = new Date(); renderDayView(); }
 
-        loadData();
+        loadView();
     </script>
 </body>
 </html>
